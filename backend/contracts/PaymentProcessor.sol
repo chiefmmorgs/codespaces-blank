@@ -1,17 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 pragma solidity ^0.8.24;
 
-interface IDataRegistry {
-    function records(uint256 recordId) external view returns (
-        uint32 age,
-        uint32 diagnosis,
-        uint32 treatmentOutcome,
-        uint64 biomarker,
-        address patient,
-        uint256 timestamp,
-        bool isActive
-    );
-}
+import "./interfaces/IDataRegistry.sol";
+import "./interfaces/IPaymentProcessor.sol";
 
 /**
  * @title PaymentProcessor

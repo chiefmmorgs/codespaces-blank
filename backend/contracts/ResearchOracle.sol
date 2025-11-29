@@ -4,38 +4,8 @@ pragma solidity ^0.8.24;
 import "fhevm/lib/TFHE.sol";
 import "fhevm/config/ZamaFHEVMConfig.sol";
 import "fhevm/gateway/GatewayCaller.sol";
-
-interface IDataRegistry {
-    struct HealthRecord {
-        euint32 age;
-        euint32 diagnosis;
-        euint32 treatmentOutcome;
-        euint64 biomarker;
-        address patient;
-        uint256 timestamp;
-        bool isActive;
-    }
-    
-    function records(uint256 recordId) external view returns (
-        euint32 age,
-        euint32 diagnosis,
-        euint32 treatmentOutcome,
-        euint64 biomarker,
-        address patient,
-        uint256 timestamp,
-        bool isActive
-    );
-    
-    function recordCount() external view returns (uint256);
-    function isRecordActive(uint256 recordId) external view returns (bool);
-}
-
-interface IPaymentProcessor {
-    function distributeEarnings(
-        uint256[] memory recordIds,
-        address researcher
-    ) external payable;
-}
+import "./interfaces/IDataRegistry.sol";
+import "./interfaces/IPaymentProcessor.sol";
 
 /**
  * @title ResearchOracle
@@ -112,6 +82,7 @@ contract ResearchOracle is SepoliaZamaFHEVMConfig, GatewayCaller {
     ) {
         require(_dataRegistry != address(0), "Invalid registry");
         require(_paymentProcessor != address(0), "Invalid processor");
+        require(_queryFee > 0, "Query fee must be greater than zero");
         
         dataRegistry = IDataRegistry(_dataRegistry);
         paymentProcessor = IPaymentProcessor(_paymentProcessor);
