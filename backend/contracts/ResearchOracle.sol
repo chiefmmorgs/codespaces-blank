@@ -50,11 +50,12 @@ contract ResearchOracle is SepoliaZamaFHEVMConfig, GatewayCaller {
     event QueryExecuted(
         uint256 indexed queryId,
         address indexed researcher,
+        uint256 indexed timestamp,
         uint256 recordCount,
         uint256 fee
     );
     
-    event QueryFeeUpdated(uint256 oldFee, uint256 newFee);
+    event QueryFeeUpdated(uint256 indexed oldFee, uint256 indexed newFee);
     
     event DecryptionRequested(
         uint256 indexed queryId,
@@ -192,7 +193,7 @@ contract ResearchOracle is SepoliaZamaFHEVMConfig, GatewayCaller {
             msg.sender
         );
         
-        emit QueryExecuted(queryId, msg.sender, usedCount, msg.value);
+        emit QueryExecuted(queryId, msg.sender, block.timestamp, usedCount, msg.value);
         
         return queryId;
     }
@@ -276,7 +277,7 @@ contract ResearchOracle is SepoliaZamaFHEVMConfig, GatewayCaller {
             msg.sender
         );
         
-        emit QueryExecuted(queryId, msg.sender, usedCount, msg.value);
+        emit QueryExecuted(queryId, msg.sender, block.timestamp, usedCount, msg.value);
         
         return queryId;
     }

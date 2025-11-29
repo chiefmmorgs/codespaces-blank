@@ -44,29 +44,32 @@ contract PaymentProcessor {
     /// @notice Reentrancy guard
     bool private locked;
     
+    /// @notice Maximum batch size for safety
+    uint256 public constant MAX_BATCH_SIZE = 100;
+    
     // ============ Events ============
     
     event PaymentReceived(
         address indexed researcher,
-        uint256 amount,
+        uint256 indexed amount,
         uint256 patientPool,
         uint256 platformFee
     );
     
     event EarningsDistributed(
         address indexed patient,
-        uint256 amount,
+        uint256 indexed amount,
         uint256 recordCount
     );
     
     event EarningsWithdrawn(
         address indexed patient,
-        uint256 amount
+        uint256 indexed amount
     );
     
     event OracleAuthorized(address indexed oracle);
     event OracleRevoked(address indexed oracle);
-    event FeeShareUpdated(uint256 patientShare, uint256 platformShare);
+    event FeeShareUpdated(uint256 indexed patientShare, uint256 indexed platformShare);
     event PlatformWalletUpdated(address indexed newWallet);
     
     // ============ Modifiers ============
@@ -321,5 +324,15 @@ contract PaymentProcessor {
         returns (bool) 
     {
         return authorizedOracles[oracle];
+    }
+    
+    // ============ Fallback Functions ============
+    
+    /**
+     * @notice Fallback function to handle unexpected ETH transfers
+     * @dev Allows contract to receive ETH without explicit function calls
+     */
+    receive() external payable {
+        // Silently accept ETH transfers
     }
 }

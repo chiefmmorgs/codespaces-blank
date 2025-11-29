@@ -305,4 +305,83 @@ describe("DataRegistry", function () {
       ).to.be.revertedWith("Not authorized");
     });
   });
+
+  describe("Batch Access Control", function () {
+    it("Should allow batch grant access for multiple records", async function () {
+      const { dataRegistry, owner, patient1, patient2, oracle } = 
+        await loadFixture(deployDataRegistryFixture);
+
+      const encryptedAge = ethers.zeroPadValue("0x01", 32);
+      const encryptedDiagnosis = ethers.zeroPadValue("0x02", 32);
+      const encryptedOutcome = ethers.zeroPadValue("0x03", 32);
+      const encryptedBiomarker = ethers.zeroPadValue("0x04", 32);
+      const inputProof = ethers.zeroPadValue("0x00", 64);
+
+      // Create records
+      await dataRegistry.connect(patient1).submitHealthData(
+        encryptedAge, encryptedDiagnosis, encryptedOutcome, encryptedBiomarker, inputProof
+      );
+      await dataRegistry.connect(patient2).submitHealthData(
+        encryptedAge, encryptedDiagnosis, encryptedOutcome, encryptedBiomarker, inputProof
+      );
+
+      // Authorize oracle
+      await dataRegistry.connect(owner).authorizeOracle(oracle.address);
+
+      // Batch grant access
+      const recordIds = [0, 1];
+      const tx = await dataRegistry
+        .connect(oracle)
+        .batchGrantOracleAccess(recordIds, oracle.address);
+
+      await expect(tx).to.emit(dataRegistry, "BatchAccessGranted");
+    });
+
+    it("Should prevent batch access exceeding max size", async function () {
+      const { dataRegistry, owner, oracle } = 
+        await loadFixture(deployDataRegistryFixture);
+
+      await dataRegistry.connect(owner).authorizeOracle(oracle.address);
+
+      // Create array exceeding max batch size (MAX_BATCH_SIZE = 100)
+      const recordIds = Array.from({ length: 101 }, (_, i) => i);
+
+      await expect(
+        dataRegistry.connect(oracle).batchGrantOracleAccess(recordIds, oracle.address)
+      ).to.be.revertedWith("Batch size exceeds limit");
+    });
+
+    it("Should reject empty batch", async function () {
+      const { dataRegistry, owner, oracle } = 
+        await loadFixture(deployDataRegistryFixture);
+
+      await dataRegistry.connect(owner).authorizeOracle(oracle.address);
+
+      const recordIds = [];
+
+      await expect(
+        dataRegistry.connect(oracle).batchGrantOracleAccess(recordIds, oracle.address)
+      ).to.be.revertedWith("No records provided");
+    });
+  });
+
+  describe("Contract Fallback Functions", function () {
+    it("Should accept ETH transfers via receive()", async function () {
+      const { dataRegistry } = await loadFixture(deployDataRegistryFixture);
+
+      const initialBalance = await ethers.provider.getBalance(await dataRegistry.getAddress());
+
+      // Send ETH directly to contract
+      const [owner] = await ethers.getSigners();
+      const tx = await owner.sendTransaction({
+        to: await dataRegistry.getAddress(),
+        value: ethers.parseEther("1.0")
+      });
+
+      await tx.wait();
+
+      const finalBalance = await ethers.provider.getBalance(await dataRegistry.getAddress());
+      expect(finalBalance).to.equal(initialBalance + ethers.parseEther("1.0"));
+    });
+  });
 });

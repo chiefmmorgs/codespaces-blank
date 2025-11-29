@@ -43,12 +43,15 @@ contract DataRegistry is SepoliaZamaFHEVMConfig, GatewayCaller {
     /// @notice Contract owner
     address public owner;
     
+    /// @notice Maximum batch size to prevent DoS attacks
+    uint256 public constant MAX_BATCH_SIZE = 100;
+    
     // ============ Events ============
     
     event RecordSubmitted(
         uint256 indexed recordId, 
         address indexed patient,
-        uint256 timestamp
+        uint256 indexed timestamp
     );
     
     event RecordRevoked(
@@ -58,6 +61,8 @@ contract DataRegistry is SepoliaZamaFHEVMConfig, GatewayCaller {
     
     event OracleAuthorized(address indexed oracle);
     event OracleRevoked(address indexed oracle);
+    event AccessGranted(uint256 indexed recordId, address indexed oracle);
+    event BatchAccessGranted(uint256[] recordIds, address indexed oracle, uint256 count);
     
     // ============ Modifiers ============
     
@@ -107,6 +112,9 @@ contract DataRegistry is SepoliaZamaFHEVMConfig, GatewayCaller {
         euint64 biomarker = TFHE.asEuint64(encryptedBiomarker, inputProof);
         
         // Basic validation - check age is reasonable (encrypted comparison)
+        // NOTE: FHE Limitation - Cannot revert based on encrypted conditions
+        // Validation is performed but cannot enforce constraints with encrypted reverts.
+        // In production, use gateway-based decryption for critical validations.
         ebool validAge = TFHE.and(
             TFHE.ge(age, TFHE.asEuint32(1)),
             TFHE.le(age, TFHE.asEuint32(120))
@@ -257,11 +265,15 @@ contract DataRegistry is SepoliaZamaFHEVMConfig, GatewayCaller {
      * @notice Batch grant access for multiple records
      * @param recordIds Array of record IDs
      * @param oracle The oracle address
+     * @dev Includes max batch size check to prevent DoS attacks
      */
     function batchGrantOracleAccess(
         uint256[] calldata recordIds, 
         address oracle
     ) external onlyAuthorizedOracle {
+        require(recordIds.length > 0, "No records provided");
+        require(recordIds.length <= MAX_BATCH_SIZE, "Batch size exceeds limit");
+        
         for (uint256 i = 0; i < recordIds.length; i++) {
             HealthRecord storage record = records[recordIds[i]];
             if (record.isActive) {
@@ -271,5 +283,16 @@ contract DataRegistry is SepoliaZamaFHEVMConfig, GatewayCaller {
                 TFHE.allow(record.biomarker, oracle);
             }
         }
+        
+        emit BatchAccessGranted(recordIds, oracle, recordIds.length);
     }
-}
+    
+    // ============ Fallback Functions ============
+    
+    /**
+     * @notice Fallback function to handle unexpected ETH transfers
+     * @dev Allows contract to receive ETH without explicit function calls
+     */
+    receive() external payable {
+        // Silently accept ETH transfers
+    }
